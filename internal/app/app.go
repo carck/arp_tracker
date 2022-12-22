@@ -7,41 +7,11 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"time"
 	"syscall"
+	"time"
 )
 
 func InitApp() {
-	time.Sleep(1 * time.Second)
-
-    if os.Getppid() != 1 {
-        // I am the parent, spawn child to run as daemon
-        binary, err := exec.LookPath(os.Args[0])
-        if err != nil {
-            fmt.Printf("Failed to lookup binary: %s\n", err)
-        }
-        _, err = os.StartProcess(binary, os.Args, &os.ProcAttr{Dir: "", Env: nil,
-                Files: []*os.File{os.Stdin, os.Stdout, os.Stderr}, Sys: nil})
-        if err != nil {
-            fmt.Printf("Failed to start process: %s\n", err)
-        }
-		fmt.Printf("arp tracker run in background\n")
-        os.Exit(0)
-    } else {
-        // I am the child, i.e. the daemon, start new session and detach from terminal
-        _, err := syscall.Setsid()
-        if err != nil {
-            fmt.Printf("Failed to create new session: %s\n", err)
-        }
-        file, err := os.OpenFile("/dev/null", os.O_RDWR, 0)
-        if err != nil {
-            fmt.Printf("Failed to open /dev/null: %s\n", err)
-        }
-        syscall.Dup2(int(file.Fd()), int(os.Stdin.Fd()))
-        syscall.Dup2(int(file.Fd()), int(os.Stdout.Fd()))
-        syscall.Dup2(int(file.Fd()), int(os.Stderr.Fd()))
-        file.Close()
-    }
 	// init command arguments
 	for _, key := range os.Args[1:] {
 		var value string
@@ -51,10 +21,47 @@ func InitApp() {
 		Args[key] = value
 	}
 
+	Fork()
 	InitArp()
 	ArpMonitor()
 	AwayTimer()
 
+}
+
+func Fork() {
+	if Args["d"] == "" {
+		return
+	}
+	time.Sleep(1 * time.Second)
+
+	if os.Getppid() != 1 {
+		// I am the parent, spawn child to run as daemon
+		binary, err := exec.LookPath(os.Args[0])
+		if err != nil {
+			fmt.Printf("Failed to lookup binary: %s\n", err)
+		}
+		_, err = os.StartProcess(binary, os.Args, &os.ProcAttr{Dir: "", Env: nil,
+			Files: []*os.File{os.Stdin, os.Stdout, os.Stderr}, Sys: nil})
+		if err != nil {
+			fmt.Printf("Failed to start process: %s\n", err)
+		}
+		fmt.Printf("arp tracker run in background\n")
+		os.Exit(0)
+	} else {
+		// I am the child, i.e. the daemon, start new session and detach from terminal
+		_, err := syscall.Setsid()
+		if err != nil {
+			fmt.Printf("Failed to create new session: %s\n", err)
+		}
+		file, err := os.OpenFile("/dev/null", os.O_RDWR, 0)
+		if err != nil {
+			fmt.Printf("Failed to open /dev/null: %s\n", err)
+		}
+		syscall.Dup2(int(file.Fd()), int(os.Stdin.Fd()))
+		syscall.Dup2(int(file.Fd()), int(os.Stdout.Fd()))
+		syscall.Dup2(int(file.Fd()), int(os.Stderr.Fd()))
+		file.Close()
+	}
 }
 
 func IsTargetDevice(mac string) bool {
