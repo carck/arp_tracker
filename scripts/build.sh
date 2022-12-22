@@ -1,7 +1,7 @@
 #!/bin/bash
 
 export GOOS=linux
-export GOARCH=amd64
+export GOARCH=arm
 export GOARM=7
 export FILENAME=arp_tracker
 

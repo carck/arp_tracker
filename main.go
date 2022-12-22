@@ -10,8 +10,7 @@ import (
 )
 
 func main() {
-	app.InitApp()  // before all
-	app.InitMqtt() // optional
+	app.Init()  // before all
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

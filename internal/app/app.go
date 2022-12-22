@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func InitApp() {
+func Init() {
 	// init command arguments
 	for _, key := range os.Args[1:] {
 		var value string
@@ -22,6 +22,7 @@ func InitApp() {
 	}
 
 	Fork()
+        InitMqtt()
 	InitArp()
 	ArpMonitor()
 	AwayTimer()
