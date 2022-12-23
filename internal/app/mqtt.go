@@ -12,7 +12,7 @@ func InitMqtt() {
 	go func() {
 		for {
 			worker()
-			
+
 			time.Sleep(time.Second * 1)
 		}
 	}()
@@ -41,10 +41,13 @@ func worker() {
 		return
 	}
 
+	tqs := []proto.TopicQos{proto.TopicQos{Topic: "homeassistant/status"}}
+	conn.Subscribe(tqs)
 	online = true
 
 	for m := range conn.Incoming {
 		fmt.Printf("mqtt recv: %s\n", m.TopicName)
+		InitDeviceTracker()
 	}
 
 	online = false

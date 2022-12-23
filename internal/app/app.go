@@ -7,9 +7,9 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
-	"sync"
 )
 
 func Init() {
@@ -24,6 +24,7 @@ func Init() {
 
 	Fork()
 	InitMqtt()
+	InitDeviceTracker()
 	InitArp()
 	ArpMonitor()
 	AwayTimer()
@@ -190,6 +191,17 @@ func AwayTimer() {
 			mu.Unlock()
 		}
 	}(timer1)
+}
+
+func InitDeviceTracker() {
+	if v, ok := Args["target"]; ok && v != "all" {
+		for _, d := range strings.Split(v, ",") {
+			if !IsTargetDevice(d) {
+				continue
+			}
+			CreateDeviceTracker(d)
+		}
+	}
 }
 
 func CreateDeviceTracker(mac string) {
