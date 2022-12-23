@@ -157,6 +157,7 @@ func ArpMonitor() {
 			}
 
 		}
+		os.Exit(1)
 	}()
 
 	err = cmd.Start()
