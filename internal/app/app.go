@@ -191,7 +191,15 @@ func CreateDeviceTracker(mac string) {
 	topic := fmt.Sprintf("homeassistant/device_tracker/%s/config", objectId)
 	body := fmt.Sprintf(`{"state_topic": "%s/state", "unique_id":arp_%s, "name": "Device Tracker %s", "payload_home": "home", "payload_not_home": "not_home"}`, objectId, mac)
 	fmt.Printf("create tracker %s, %s\n", topic, body)
-	Publish(topic, body, false)
+	go func() {
+		for {
+			if !online {
+				time.Sleep(time.Second * 1)
+			}
+			Publish(topic, body, false)
+			break
+		}
+	}()
 }
 
 var Args = map[string]string{}
