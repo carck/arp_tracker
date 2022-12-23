@@ -9,6 +9,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"sync"
 )
 
 func Init() {
@@ -86,6 +87,7 @@ func InitArp() {
 		os.Exit(1)
 	} else {
 		arp := string(out)
+		mu.Lock()
 		for _, d := range strings.Split(arp, "\n") {
 			entry := strings.Split(d, " ")
 			if len(entry) > 3 {
@@ -99,6 +101,7 @@ func InitArp() {
 				fmt.Printf("device present: %s\n", mac)
 			}
 		}
+		mu.Unlock()
 	}
 }
 
@@ -147,6 +150,7 @@ func ArpMonitor() {
 			if _, ok := Devices[mac]; !ok {
 				CreateDeviceTracker(mac)
 			}
+			mu.Lock()
 			if deleted {
 				fmt.Printf("%s %t\n", mac, deleted)
 				Devices[mac] = time.Now().Unix() + alwayInterval
@@ -155,7 +159,7 @@ func ArpMonitor() {
 				Publish(GetObjectId(mac)+"/state", "home", true)
 				fmt.Printf("device present: %s\n", mac)
 			}
-
+			mu.Unlock()
 		}
 		os.Exit(1)
 	}()
@@ -175,13 +179,15 @@ func AwayTimer() {
 			fmt.Println("Away timer!")
 
 			unix := time.Now().Unix()
+			mu.Lock()
 			for mac, expire := range Devices {
 				if expire > 0 && unix > expire {
-					fmt.Println("device away: %s", mac)
+					fmt.Println("device away: ", mac)
 					delete(Devices, mac)
 					Publish(GetObjectId(mac)+"/state", "not_home", true)
 				}
 			}
+			mu.Unlock()
 		}
 	}(timer1)
 }
@@ -204,3 +210,4 @@ func CreateDeviceTracker(mac string) {
 
 var Args = map[string]string{}
 var Devices = map[string]int64{}
+var mu sync.Mutex
