@@ -2,7 +2,7 @@
 
 export GOOS=linux
 export GOARCH=arm
-export GOARM=7
+export GOARM=5
 export FILENAME=arp_tracker
 
 go build -ldflags "-s -w" -trimpath -o $FILENAME

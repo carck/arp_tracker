@@ -22,7 +22,7 @@ func Init() {
 	}
 
 	Fork()
-        InitMqtt()
+	InitMqtt()
 	InitArp()
 	ArpMonitor()
 	AwayTimer()
@@ -121,6 +121,9 @@ func ArpMonitor() {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "arp monitor failed", err)
 		os.Exit(1)
+	}
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Pdeathsig: syscall.SIGTERM,
 	}
 
 	scanner := bufio.NewScanner(cmdReader)
