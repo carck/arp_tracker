@@ -26,9 +26,11 @@ func Init() {
 	InitMqtt()
 	InitDeviceTracker()
 	InitArp()
-	ArpMonitor()
-	AwayTimer()
-
+        AwayTimer()
+        for {
+            ArpMonitor()
+            time.Sleep(time.Second * 30)
+        }
 }
 
 func Fork() {
@@ -162,14 +164,14 @@ func ArpMonitor() {
 			}
 			mu.Unlock()
 		}
-		os.Exit(1)
 	}()
 
 	err = cmd.Start()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "arp monitor failed", err)
-		os.Exit(1)
 	}
+        err = cmd.Wait()
+        fmt.Fprintln(os.Stderr, "monitor exit", err)
 }
 
 func AwayTimer() {
