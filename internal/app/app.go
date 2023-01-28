@@ -26,11 +26,11 @@ func Init() {
 	InitMqtt()
 	InitDeviceTracker()
 	InitArp()
-        AwayTimer()
-        for {
-            ArpMonitor()
-            time.Sleep(time.Second * 30)
-        }
+	AwayTimer()
+	for {
+		ArpMonitor()
+		time.Sleep(time.Second * 30)
+	}
 }
 
 func Fork() {
@@ -128,6 +128,7 @@ func ArpMonitor() {
 		fmt.Fprintln(os.Stderr, "arp monitor failed", err)
 		os.Exit(1)
 	}
+
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Pdeathsig: syscall.SIGTERM,
 	}
@@ -170,8 +171,8 @@ func ArpMonitor() {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "arp monitor failed", err)
 	}
-        err = cmd.Wait()
-        fmt.Fprintln(os.Stderr, "monitor exit", err)
+	err = cmd.Wait()
+	fmt.Fprintln(os.Stderr, "monitor exit", err)
 }
 
 func AwayTimer() {
@@ -211,15 +212,7 @@ func CreateDeviceTracker(mac string) {
 	topic := fmt.Sprintf("homeassistant/device_tracker/%s/config", objectId)
 	body := fmt.Sprintf(`{"state_topic": "%s/state", "unique_id":"arp_%s", "name": "Device Tracker %s", "payload_home": "home", "payload_not_home": "not_home"}`, objectId, objectId, mac)
 	fmt.Printf("create tracker %s, %s\n", topic, body)
-	go func() {
-		for {
-			if !online {
-				time.Sleep(time.Second * 1)
-			}
-			Publish(topic, body, false)
-			break
-		}
-	}()
+	PublishOnline(topic, body, false)
 }
 
 var Args = map[string]string{}

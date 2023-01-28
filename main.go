@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	app.Init()  // before all
+	app.Init() // before all
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
