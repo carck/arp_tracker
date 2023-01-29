@@ -12,7 +12,23 @@ import (
 	"time"
 )
 
+var Args = map[string]string{}
+var Devices = map[string]int64{}
+var mu sync.Mutex
+
 func Init() {
+	SetupCfg()
+	Fork()
+	InitArp()
+	InitMqtt()
+	AwayTimer()
+	for {
+		ArpMonitor()
+		time.Sleep(time.Second * 30)
+	}
+}
+
+func SetupCfg() {
 	// init command arguments
 	for _, key := range os.Args[1:] {
 		var value string
@@ -22,14 +38,14 @@ func Init() {
 		Args[key] = value
 	}
 
-	Fork()
-	InitMqtt()
-	InitDeviceTracker()
-	InitArp()
-	AwayTimer()
-	for {
-		ArpMonitor()
-		time.Sleep(time.Second * 30)
+	// setup devices
+	if v, ok := Args["target"]; ok {
+		for _, d := range strings.Split(v, ",") {
+			if !strings.Contains(d, ":") {
+				continue
+			}
+			Devices[d] = -1
+		}
 	}
 }
 
@@ -70,13 +86,8 @@ func Fork() {
 }
 
 func IsTargetDevice(mac string) bool {
-	if !strings.Contains(mac, ":") {
-		return false
-	}
-	if Args["target"] == "all" {
-		return true
-	}
-	return strings.Contains(Args["target"], mac)
+	_, ok := Devices[mac]
+	return ok
 }
 
 func GetObjectId(mac string) string {
@@ -90,7 +101,6 @@ func InitArp() {
 		os.Exit(1)
 	} else {
 		arp := string(out)
-		mu.Lock()
 		for _, d := range strings.Split(arp, "\n") {
 			entry := strings.Split(d, " ")
 			if len(entry) > 3 {
@@ -99,12 +109,9 @@ func InitArp() {
 					continue
 				}
 				Devices[mac] = 0
-				CreateDeviceTracker(mac)
-				Publish(GetObjectId(mac)+"/state", "home", true)
 				fmt.Printf("device present: %s\n", mac)
 			}
 		}
-		mu.Unlock()
 	}
 }
 
@@ -151,16 +158,16 @@ func ArpMonitor() {
 			if !IsTargetDevice(mac) {
 				continue
 			}
-			if _, ok := Devices[mac]; !ok {
-				CreateDeviceTracker(mac)
-			}
 			mu.Lock()
 			if deleted {
 				fmt.Printf("%s %t\n", mac, deleted)
 				Devices[mac] = time.Now().Unix() + alwayInterval
 			} else {
+				old := Devices[mac]
 				Devices[mac] = 0
-				Publish(GetObjectId(mac)+"/state", "home", true)
+				if old == -1 {
+					Publish(GetObjectId(mac)+"/state", "home", true)
+				}
 				fmt.Printf("device present: %s\n", mac)
 			}
 			mu.Unlock()
@@ -187,7 +194,7 @@ func AwayTimer() {
 			for mac, expire := range Devices {
 				if expire > 0 && unix > expire {
 					fmt.Println("device away: ", mac)
-					delete(Devices, mac)
+					Devices[mac] = -1
 					Publish(GetObjectId(mac)+"/state", "not_home", true)
 				}
 			}
@@ -197,14 +204,19 @@ func AwayTimer() {
 }
 
 func InitDeviceTracker() {
-	if v, ok := Args["target"]; ok && v != "all" {
-		for _, d := range strings.Split(v, ",") {
-			if !IsTargetDevice(d) {
-				continue
-			}
-			CreateDeviceTracker(d)
+	mu.Lock()
+	for mac, _ := range Devices {
+		CreateDeviceTracker(mac)
+	}
+
+	for mac, v := range Devices {
+		if v == -1 {
+			Publish(GetObjectId(mac)+"/state", "not_home", true)
+		} else {
+			Publish(GetObjectId(mac)+"/state", "home", true)
 		}
 	}
+	mu.Unlock()
 }
 
 func CreateDeviceTracker(mac string) {
@@ -212,9 +224,5 @@ func CreateDeviceTracker(mac string) {
 	topic := fmt.Sprintf("homeassistant/device_tracker/%s/config", objectId)
 	body := fmt.Sprintf(`{"state_topic": "%s/state", "unique_id":"arp_%s", "name": "Device Tracker %s", "payload_home": "home", "payload_not_home": "not_home"}`, objectId, objectId, mac)
 	fmt.Printf("create tracker %s, %s\n", topic, body)
-	PublishOnline(topic, body, false)
+	Publish(topic, body, false)
 }
-
-var Args = map[string]string{}
-var Devices = map[string]int64{}
-var mu sync.Mutex

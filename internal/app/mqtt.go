@@ -5,7 +5,6 @@ import (
 	proto "github.com/huin/mqtt"
 	"github.com/jeffallen/mqtt"
 	"net"
-	"sync/atomic"
 	"time"
 )
 
@@ -19,8 +18,7 @@ func InitMqtt() {
 	}()
 }
 
-var conn *mqtt.ClientConn
-var online int32 = 0
+var conn *mqtt.ClientConn = nil
 
 func GetMqttHost() string {
 	if Args["mqtt"] != "" {
@@ -44,32 +42,25 @@ func worker() {
 
 	tqs := []proto.TopicQos{proto.TopicQos{Topic: "homeassistant/status"}}
 	conn.Subscribe(tqs)
-	atomic.StoreInt32(&online, 1)
+
+	InitDeviceTracker()
 
 	for m := range conn.Incoming {
 		fmt.Printf("mqtt recv: %s\n", m.TopicName)
 		InitDeviceTracker()
 	}
 
-	atomic.StoreInt32(&online, 0)
-}
-
-func PublishOnline(topic string, data string, retain bool) {
-	go func() {
-		a := 0
-		for a < 60 {
-			if !Publish(topic, data, retain) {
-				time.Sleep(time.Second * 1)
-			} else {
-				break
-			}
-			a = a + 1
-		}
-	}()
+	conn = nil
 }
 
 func Publish(topic string, data string, retain bool) bool {
-	if atomic.LoadInt32(&online) == 0 {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered in f", r)
+		}
+	}()
+
+	if conn == nil {
 		return false
 	}
 
