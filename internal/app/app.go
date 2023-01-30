@@ -142,7 +142,7 @@ func ArpMonitor() {
 
 	scanner := bufio.NewScanner(cmdReader)
 	go func() {
-		alwayInterval := GetAwayInterval()
+		awayInterval := GetAwayInterval()
 		for scanner.Scan() {
 			entry := strings.Split(scanner.Text(), " ")
 			deleted := (entry[0] == "delete")
@@ -155,23 +155,7 @@ func ArpMonitor() {
 			if deleted {
 				mac = entry[5]
 			}
-			mu.Lock()
-			if !IsTargetDevice(mac) {
-				mu.Unlock()
-				continue
-			}
-			if deleted {
-				fmt.Printf("%s %t\n", mac, deleted)
-				Devices[mac] = time.Now().Unix() + alwayInterval
-			} else {
-				old := Devices[mac]
-				Devices[mac] = 0
-				if old == -1 {
-					Publish(GetObjectId(mac)+"/state", "home", true)
-				}
-				fmt.Printf("device present: %s\n", mac)
-			}
-			mu.Unlock()
+			OnArpChanged(mac, deleted, awayInterval)
 		}
 	}()
 
@@ -183,25 +167,50 @@ func ArpMonitor() {
 	fmt.Fprintln(os.Stderr, "monitor exit", err)
 }
 
+func OnArpChanged(mac string, deleted bool, awayInterval int64) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if !IsTargetDevice(mac) {
+		mu.Unlock()
+		return
+	}
+	if deleted {
+		fmt.Printf("%s %t\n", mac, deleted)
+		Devices[mac] = time.Now().Unix() + awayInterval
+	} else {
+		old := Devices[mac]
+		Devices[mac] = 0
+		if old == -1 {
+			Publish(GetObjectId(mac)+"/state", "home", true)
+		}
+		fmt.Printf("device present: %s\n", mac)
+	}
+}
+
 func AwayTimer() {
 	timer1 := time.NewTicker(10 * time.Second)
 	go func(t *time.Ticker) {
 		for {
-			<-timer1.C
+			<-t.C
 			fmt.Println("Away timer!")
-
-			unix := time.Now().Unix()
-			mu.Lock()
-			for mac, expire := range Devices {
-				if expire > 0 && unix > expire {
-					fmt.Println("device away: ", mac)
-					Devices[mac] = -1
-					Publish(GetObjectId(mac)+"/state", "not_home", true)
-				}
-			}
-			mu.Unlock()
+			OnTimer()
 		}
 	}(timer1)
+}
+
+func OnTimer() {
+	mu.Lock()
+	defer mu.Unlock()
+
+	unix := time.Now().Unix()
+	for mac, expire := range Devices {
+		if expire > 0 && unix > expire {
+			fmt.Println("device away: ", mac)
+			Devices[mac] = -1
+			Publish(GetObjectId(mac)+"/state", "not_home", true)
+		}
+	}
 }
 
 func InitDeviceTracker() {
