@@ -155,10 +155,11 @@ func ArpMonitor() {
 			if deleted {
 				mac = entry[5]
 			}
+			mu.Lock()
 			if !IsTargetDevice(mac) {
+				mu.Unlock()
 				continue
 			}
-			mu.Lock()
 			if deleted {
 				fmt.Printf("%s %t\n", mac, deleted)
 				Devices[mac] = time.Now().Unix() + alwayInterval

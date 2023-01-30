@@ -2,10 +2,11 @@ package app
 
 import (
 	"fmt"
-	proto "github.com/huin/mqtt"
-	"github.com/jeffallen/mqtt"
 	"net"
 	"time"
+
+	proto "github.com/huin/mqtt"
+	"github.com/jeffallen/mqtt"
 )
 
 func InitMqtt() {
@@ -18,7 +19,7 @@ func InitMqtt() {
 	}()
 }
 
-var conn *mqtt.ClientConn = nil
+var gConn *mqtt.ClientConn = nil
 
 func GetMqttHost() string {
 	if Args["mqtt"] != "" {
@@ -34,7 +35,7 @@ func worker() {
 		return
 	}
 
-	conn = mqtt.NewClientConn(c)
+	conn := mqtt.NewClientConn(c)
 	if err = conn.Connect("", ""); err != nil {
 		fmt.Printf("mqtt connect fails: %s\n", err)
 		return
@@ -43,6 +44,8 @@ func worker() {
 	tqs := []proto.TopicQos{proto.TopicQos{Topic: "homeassistant/status"}}
 	conn.Subscribe(tqs)
 
+	SetConn(conn)
+
 	InitDeviceTracker()
 
 	for m := range conn.Incoming {
@@ -50,7 +53,13 @@ func worker() {
 		InitDeviceTracker()
 	}
 
-	conn = nil
+	SetConn(nil)
+}
+
+func SetConn(c *mqtt.ClientConn) {
+	mu.Lock()
+	defer mu.Unlock()
+	gConn = c
 }
 
 func Publish(topic string, data string, retain bool) bool {
@@ -60,7 +69,7 @@ func Publish(topic string, data string, retain bool) bool {
 		}
 	}()
 
-	if conn == nil {
+	if gConn == nil {
 		return false
 	}
 
@@ -71,6 +80,6 @@ func Publish(topic string, data string, retain bool) bool {
 		TopicName: topic,
 		Payload:   proto.BytesPayload(payload),
 	}
-	conn.Publish(msg)
+	gConn.Publish(msg)
 	return true
 }
