@@ -206,6 +206,8 @@ func AwayTimer() {
 
 func InitDeviceTracker() {
 	mu.Lock()
+	defer mu.Unlock()
+
 	for mac, _ := range Devices {
 		CreateDeviceTracker(mac)
 	}
@@ -217,7 +219,6 @@ func InitDeviceTracker() {
 			Publish(GetObjectId(mac)+"/state", "home", true)
 		}
 	}
-	mu.Unlock()
 }
 
 func CreateDeviceTracker(mac string) {
