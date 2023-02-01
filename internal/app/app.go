@@ -172,7 +172,6 @@ func OnArpChanged(mac string, deleted bool, awayInterval int64) {
 	defer mu.Unlock()
 
 	if !IsTargetDevice(mac) {
-		mu.Unlock()
 		return
 	}
 	if deleted {
