@@ -147,7 +147,7 @@ func ArpMonitor() {
 			entry := strings.Split(scanner.Text(), " ")
 			deleted := (entry[0] == "delete")
 
-			if len(entry) < 4 {
+			if len(entry) < 5 || deleted && len(entry) < 6 {
 				continue
 			}
 
