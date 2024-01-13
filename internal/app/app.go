@@ -95,7 +95,7 @@ func GetObjectId(mac string) string {
 }
 
 func InitArp() {
-	out, err := exec.Command("arp", "-a").Output()
+	out, err := os.ReadFile("/proc/net/arp")
 	if err != nil {
 		fmt.Printf("ark -a fails: %s\n", err)
 		os.Exit(1)
@@ -145,17 +145,29 @@ func ArpMonitor() {
 		awayInterval := GetAwayInterval()
 		for scanner.Scan() {
 			entry := strings.Split(scanner.Text(), " ")
-			deleted := (entry[0] == "delete")
 
-			if len(entry) < 5 || deleted && len(entry) < 6 {
+			if len(entry) < 4 {
+				fmt.Printf("%s", entry)
 				continue
 			}
 
-			mac := entry[4]
-			if deleted {
-				mac = entry[5]
+			mac := entry[len(entry) - 3]
+			reachable := (entry[len(entry) - 2] == "REACHABLE")
+
+			if !IsTargetDevice(mac) {
+				//fmt.Printf("%s", mac)
+				continue
 			}
-			OnArpChanged(mac, deleted, awayInterval)
+			if _, ok := Devices[mac]; !ok {
+				CreateDeviceTracker(mac)
+			}
+			mu.Lock()
+			if reachable {
+				Devices[mac] = time.Now().Unix() + awayInterval
+				Publish(GetObjectId(mac)+"/state", "home", true)
+				fmt.Printf("device present: %s\n", mac)
+			}
+			mu.Unlock()
 		}
 	}()
 

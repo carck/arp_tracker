@@ -1,8 +1,9 @@
 #!/bin/bash
 
 export GOOS=linux
-export GOARCH=arm
-export GOARM=5
+export GOARCH=mipsle
+export GOMIPS=softfloat
+#export GOARM=5
 export FILENAME=arp_tracker
 
 #go build -ldflags "-s -w" -trimpath -o $FILENAME
