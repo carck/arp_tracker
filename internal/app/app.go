@@ -94,6 +94,18 @@ func GetObjectId(mac string) string {
 	return strings.ReplaceAll(mac, ":", "")
 }
 
+func OnDoorOpen() {
+	go func() {
+		for i := 0; i < 10; i++ {
+			for mac, _ := range Devices {
+				cmd := exec.Command("arping", mac)
+				cmd.Start()
+			}
+			time.Sleep(1 * time.Second)
+		}
+	}()
+}
+
 func InitArp() {
 	out, err := os.ReadFile("/proc/net/arp")
 	if err != nil {
@@ -151,8 +163,8 @@ func ArpMonitor() {
 				continue
 			}
 
-			mac := entry[len(entry) - 3]
-			reachable := (entry[len(entry) - 2] == "REACHABLE")
+			mac := entry[len(entry)-3]
+			reachable := (entry[len(entry)-2] == "REACHABLE")
 
 			if !IsTargetDevice(mac) {
 				//fmt.Printf("%s", mac)

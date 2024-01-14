@@ -41,7 +41,10 @@ func worker() {
 		return
 	}
 
-	tqs := []proto.TopicQos{proto.TopicQos{Topic: "homeassistant/status"}}
+	tqs := []proto.TopicQos{
+		proto.TopicQos{Topic: "homeassistant/status"},
+		proto.TopicQos{Topic: "homeassistant/door"},
+	}
 	conn.Subscribe(tqs)
 
 	SetConn(conn)
@@ -50,7 +53,11 @@ func worker() {
 
 	for m := range conn.Incoming {
 		fmt.Printf("mqtt recv: %s\n", m.TopicName)
-		InitDeviceTracker()
+		if m.TopicName == "homeassistant/door" {
+			OnDoorOpen()
+		} else {
+			InitDeviceTracker()
+		}
 	}
 
 	SetConn(nil)
