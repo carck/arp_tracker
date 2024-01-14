@@ -14,6 +14,7 @@ import (
 
 var Args = map[string]string{}
 var Devices = map[string]int64{}
+var Hosts = []string{}
 var mu sync.Mutex
 
 func Init() {
@@ -45,6 +46,13 @@ func SetupCfg() {
 				continue
 			}
 			Devices[d] = -1
+		}
+	}
+
+	// setup hosts
+	if v, ok := Args["host"]; ok {
+		for i, d := range strings.Split(v, ",") {
+			Hosts[i] = d
 		}
 	}
 }
@@ -97,8 +105,8 @@ func GetObjectId(mac string) string {
 func OnDoorOpen() {
 	go func() {
 		for i := 0; i < 10; i++ {
-			for mac, _ := range Devices {
-				cmd := exec.Command("arping", mac)
+			for _, mac := range Hosts {
+				cmd := exec.Command("ping", "-c", "1", mac)
 				cmd.Start()
 			}
 			time.Sleep(1 * time.Second)
